@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 '''
-Given the fmriprep derivatives directory, build a paginated QC page with full index structuring for easy browsing
+Given the fmriprep derivatives directory, build a paginated QC page 
 
 Usage:
     build_fmriprep_qc.py <fmriprep_dir> <output_dir>
@@ -22,9 +22,6 @@ def participants_tsv(layout,output):
     '''
     Generate a template for participants.tsv by scraping the output file types
     '''
-
-
-
     
     pass
 
@@ -44,9 +41,6 @@ def gen_anatomical_qc(root_dir,subjects,keyword,output):
     Make an anatomical QC page
     '''
 
-    pages_dir = os.path.join(output,'pages')
-    makedir(pages_dir)
-
     html = []
     missing_svg = []
     page_num = 0
@@ -65,7 +59,7 @@ def gen_anatomical_qc(root_dir,subjects,keyword,output):
         #Now build paginated QC page, link to next one if available
         if ((i != 0) and (i % FIGSPERPAGE == 0)) or (i == len(subjects)-1):
 
-            page = os.path.join(output,pages_dir,'{}.html'.format(page_num))
+            page = os.path.join(output,'{}.html'.format(page_num))
 
             #Handle previous and next page
             prev_pg = ''
@@ -89,19 +83,10 @@ def gen_anatomical_qc(root_dir,subjects,keyword,output):
 
         #Get full path to SVG file, make relative to page
         svg = os.path.join(figdir,svg)
-        rel_svg = os.path.relpath(svg, pages_dir)
+        rel_svg = os.path.relpath(svg, output)
 
         #Append to HTML
         html.append(add_image_row(s, rel_svg))
-
-    #Make index page
-    index_html = []
-    index_path = os.path.join(output,'index.html')
-    for i in range(0,page_num):
-        index_html += ['<tr><td><a href="./pages/{}.html">Page {}</a></td></tr>'.format(i,i)]
-
-    with open(index_path,'w') as f:
-        f.writelines(index_html)
 
     return
 
@@ -164,10 +149,6 @@ def make_fc_html(svg_tups, output):
     html = []
     page_num = 0
     
-    #Set up pages directory
-    pages_dir = os.path.join(output,'pages')
-    makedir(pages_dir)
-
     for i,t in enumerate(svg_tups):
 
         #Split tup to filename tag and svg
@@ -176,7 +157,7 @@ def make_fc_html(svg_tups, output):
         #Now build paginated QC page, link to next one if available
         if ((i != 0) and (i % FIGSPERPAGE == 0)) or (i == len(svg_tups)-1):
 
-            page = os.path.join(output,pages_dir,'{}.html'.format(page_num))
+            page = os.path.join(output,'{}.html'.format(page_num))
 
             #Handle previous and next page
             prev_pg = ''
@@ -199,19 +180,10 @@ def make_fc_html(svg_tups, output):
             page_num += 1
 
         #Get full path to SVG file, make relative to page
-        rel_svg = os.path.relpath(svg, pages_dir)
+        rel_svg = os.path.relpath(svg, output)
 
         #Append to HTML
         html.append(add_image_row(filename, rel_svg))
-
-    #Make index page
-    index_html = []
-    index_path = os.path.join(output,'index.html')
-    for i in range(0,page_num):
-        index_html += ['<tr><td><a href="./pages/{}.html">Page {}</a></td></tr>'.format(i,i)]
-
-    with open(index_path,'w') as f:
-        f.writelines(index_html)
 
     return
 
