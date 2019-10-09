@@ -4,25 +4,74 @@
 Given the fmriprep derivatives directory, build a paginated QC page 
 
 Usage:
-    build_fmriprep_qc.py <fmriprep_dir> <output_dir>
+    build_fmriprep_qc.py [-i FIELD]... <fmriprep_dir> <output_dir>
 
 Arguments:
     <fmriprep_dir>                          Full path to FMRIPREP derivatives directory
     <output_dir>                            Full path to output directory to dump QC files into
+
+Optional:
+    -i, --ignore FIELD                      BIDS field to toss out when categorize scan types
+    -s, --space SPACE                       Search for a particular space [Default: T1w]
 '''
 
 
 import os
 import bids
 from docopt import docopt
+import re
 
 
 FIGSPERPAGE=20
-def participants_tsv(layout,output):
+
+def filter_ignored_fields(filelist, ignore_fields):
+    '''
+    Given a list of BIDS file names (full name not needed, just the substrings of interest),
+    remove any unwanted fields
+
+    Returns a set
+    '''
+
+    #For each field to remove, go through list and remove
+    new_list = []
+    for i in ignore_fields:
+
+        #Set up regex to look for substring match
+        pattern = re.compile("{}-.*?(?=_)".format(i))
+
+        for f in filelist:
+
+            try:
+                match = pattern.findall(f)[0]
+            except IndexError:
+                new_list.append(f)
+
+            new_list.append( f.replace('_{}'.format(match),'') )
+
+def participants_tsv(layout,output,ignore_fields):
     '''
     Generate a template for participants.tsv by scraping the output file types
-    '''
     
+    layout                          BIDSLayout object
+    output                          Directory to output into
+    ignore_fields                   List of fields to ignore when generating the columns of participants.tsv
+    '''
+
+    #Get all BOLD files and remove extension
+    f = layout.get(extension='nii.gz',space='T1w',suffix='bold')
+    f = list(set(['_'.join(x.filename.strip('.nii.gz').split('_')[1:]) for x in f]))
+    f = filter_ignored_fields(f,ignore_fields)
+
+    #Filter out anything in fields to be ignored
+
+    #Get T1w preprocessed anatomical files and remove extension
+    a = [x for x in layout.get(extension='nii.gz',suffix='T1w')
+            if x.filename.split('_')[1] == 'T1w.nii.gz']
+    a = set(['_'.join(x.filename.strip('.nii.gz').split('_')[1:]) for x in a])
+
+    #Next generate the unique list of descriptors for BOLD and anatomical
+    descriptors = ['_'.join(x.filename.strip('.')
+
     pass
 
 def add_image_row(tag,svg):
@@ -187,14 +236,13 @@ def make_fc_html(svg_tups, output):
 
     return
 
-def gen_functional_qc(root_dir,layout,task,keywords,output):
+def gen_functional_qc(root_dir,taskfiles,task,keywords,output):
     '''
     Given the fmriprep derivatives root dir, subjects, task and keywords
     Generate html qc pages in a hierarchical structure
     '''
 
     missing_svg = []
-    taskfiles = layout.get(task=task,suffix='bold',space='T1w',extension='.nii.gz')
     map_tuples = []
 
     for f in taskfiles:
@@ -220,7 +268,7 @@ def gen_functional_qc(root_dir,layout,task,keywords,output):
 
     make_fc_html(map_tuples, output)
 
-def make_functional_qc(layout,output):
+def make_functional_qc(layout,output, space):
     '''
     For each task make each QC modality
     '''
@@ -232,20 +280,22 @@ def make_functional_qc(layout,output):
     
     for t in layout.get_tasks():
 
+        taskfiles = layout.get(task=t,suffix='bold',space=space,extension='.nii.gz')
+
         #EPI-TO-T1
         epi2t1_dir = os.path.join(output,t,'epi2t1')
         makedir(epi2t1_dir)
-        gen_functional_qc(fmriprep_dir,layout,t,['bbregister','coreg'],epi2t1_dir)
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['bbregister','coreg'],epi2t1_dir)
 
         #SDC
         sdc_dir = os.path.join(output,t,'sdc')
         makedir(sdc_dir)
-        gen_functional_qc(fmriprep_dir,layout,t,['sdc'],sdc_dir)
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['sdc'],sdc_dir)
 
         #ROIS
         roi_dir = os.path.join(output,t,'rois')
         makedir(roi_dir)
-        gen_functional_qc(fmriprep_dir,layout,t,['rois'],roi_dir)
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['rois'],roi_dir)
 
     return
 
@@ -254,12 +304,14 @@ def main():
     args    =   docopt(__doc__)
     fmriprep_dir    =   args['<fmriprep_dir>']
     output_dir      =   args['<output_dir>']
+    ignore_fields   =   args['--ignore']
+    space           =   args['--space']
 
 
     layout = bids.BIDSLayout(fmriprep_dir,derivatives=True,validate=False)
 
     #Generate participants.tsv template
-    participants_tsv(layout,output_dir)
+    participants_tsv(layout,output_dir,space,ignore_fields)
 
     #Make anatomical QC pages
     anat_qc = os.path.join(output_dir,'anat')
@@ -269,7 +321,7 @@ def main():
     #Make functional QC pages
     func_qc = os.path.join(output_dir,'func')
     makedir(func_qc)
-    make_functional_qc(layout,func_qc)
+    make_functional_qc(layout,func_qc, space)
 
 
 if __name__ == '__main__':
