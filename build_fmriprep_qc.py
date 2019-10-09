@@ -4,7 +4,7 @@
 Given the fmriprep derivatives directory, build a paginated QC page 
 
 Usage:
-    build_fmriprep_qc.py [-i FIELD]... <fmriprep_dir> <output_dir>
+    build_fmriprep_qc.py [options] [-i FIELD]... <fmriprep_dir> <output_dir>
 
 Arguments:
     <fmriprep_dir>                          Full path to FMRIPREP derivatives directory
@@ -48,6 +48,8 @@ def filter_ignored_fields(filelist, ignore_fields):
 
             new_list.append( f.replace('_{}'.format(match),'') )
 
+    return set(new_list)
+
 def participants_tsv(layout,output,ignore_fields):
     '''
     Generate a template for participants.tsv by scraping the output file types
@@ -62,17 +64,28 @@ def participants_tsv(layout,output,ignore_fields):
     f = list(set(['_'.join(x.filename.strip('.nii.gz').split('_')[1:]) for x in f]))
     f = filter_ignored_fields(f,ignore_fields)
 
-    #Filter out anything in fields to be ignored
-
     #Get T1w preprocessed anatomical files and remove extension
     a = [x for x in layout.get(extension='nii.gz',suffix='T1w')
             if x.filename.split('_')[1] == 'T1w.nii.gz']
     a = set(['_'.join(x.filename.strip('.nii.gz').split('_')[1:]) for x in a])
 
-    #Next generate the unique list of descriptors for BOLD and anatomical
-    descriptors = ['_'.join(x.filename.strip('.')
+    #Make participants.tsv file!
+    tsv = os.path.join(output,'participants.tsv')
 
-    pass
+    #One line per subject, everything else should be empty
+    subjects = ['sub-{}'.format(s) for s in layout.get_subjects()]
+
+    #Header line contains subject, anatomical, and sorted functional
+    first_line = ['subject'] + list(a) + [s for s in sorted(list(f))]
+
+    with open(tsv,'w') as f:
+
+        #Write header then dump subjects
+        f.write( '\t'.join(first_line) )
+        f.write( '\n'.join(subjects) )
+
+    return
+
 
 def add_image_row(tag,svg):
     '''
@@ -305,8 +318,7 @@ def main():
     fmriprep_dir    =   args['<fmriprep_dir>']
     output_dir      =   args['<output_dir>']
     ignore_fields   =   args['--ignore']
-    space           =   args['--space']
-
+    space           =   args['--space'] or 'T1w'
 
     layout = bids.BIDSLayout(fmriprep_dir,derivatives=True,validate=False)
 
