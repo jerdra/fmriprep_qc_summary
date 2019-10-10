@@ -32,6 +32,9 @@ def filter_ignored_fields(filelist, ignore_fields):
     Returns a set
     '''
 
+    if not ignore_fields:
+        return set(filelist)
+
     #For each field to remove, go through list and remove
     new_list = []
     for i in ignore_fields:
@@ -64,25 +67,17 @@ def participants_tsv(layout,output,ignore_fields):
     f = list(set(['_'.join(x.filename.strip('.nii.gz').split('_')[1:]) for x in f]))
     f = filter_ignored_fields(f,ignore_fields)
 
-    #Get T1w preprocessed anatomical files and remove extension
-    a = [x for x in layout.get(extension='nii.gz',suffix='T1w')
-            if x.filename.split('_')[1] == 'T1w.nii.gz']
-    a = set(['_'.join(x.filename.strip('.nii.gz').split('_')[1:]) for x in a])
-
     #Make participants.tsv file!
     tsv = os.path.join(output,'participants.tsv')
 
-    #One line per subject, everything else should be empty
-    subjects = ['sub-{}'.format(s) for s in layout.get_subjects()]
-
     #Header line contains subject, anatomical, and sorted functional
-    first_line = ['subject'] + list(a) + [s for s in sorted(list(f))]
+    header = ['subject'] + ['preproc_T1w'] + [s for s in sorted(list(f))]
 
     with open(tsv,'w') as f:
 
-        #Write header then dump subjects
-        f.write( '\t'.join(first_line) )
-        f.write( '\n'.join(subjects) )
+        #Write header
+        f.write( '\t'.join(header) )
+        f.write( '\n' )
 
     return
 
@@ -276,10 +271,17 @@ def gen_functional_qc(root_dir,taskfiles,task,keywords,output):
         except IndexError:
             missing_svg.append(f)
             continue
+        else:
+            if svg is None:
+                missing_svg.append(f)
+                continue
 
         map_tuples.append( (f.filename, os.path.join(figdir,svg)) )
 
-    make_fc_html(map_tuples, output)
+    if len(missing_svg) == len(taskfiles):
+        return
+    else:
+        make_fc_html(map_tuples, output)
 
 def make_functional_qc(layout,output, space):
     '''
@@ -323,7 +325,7 @@ def main():
     layout = bids.BIDSLayout(fmriprep_dir,derivatives=True,validate=False)
 
     #Generate participants.tsv template
-    participants_tsv(layout,output_dir,space,ignore_fields)
+    participants_tsv(layout,output_dir,ignore_fields)
 
     #Make anatomical QC pages
     anat_qc = os.path.join(output_dir,'anat')
