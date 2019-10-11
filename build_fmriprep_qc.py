@@ -174,10 +174,12 @@ def makedir(path):
         pass
     return
 
-def get_func_svg(sub,ses,task,run,figtype,flist):
+def get_func_svg(sub,ses,task,run,figtype,flist,exclude=[]):
     '''
     Pull svg for specific task, run and figure type from a list of figures in fmriprep derivatives
     '''
+
+    exclude = set(exclude)
 
     for f in flist:
         splitted = f.split('.')[0].split('_')
@@ -195,8 +197,13 @@ def get_func_svg(sub,ses,task,run,figtype,flist):
 
         figtype_in = figtype in splitted
 
+        #For exclusions to set-based intersection
+        exclude_in = exclude.intersection(set(splitted))
+
         if sub_in and ses_in and task_in and run_in and figtype_in:
-            return f
+
+            if len(exclude_in) == 0:
+                return f
 
 def make_fc_html(svg_tups, output):
     '''
@@ -244,7 +251,7 @@ def make_fc_html(svg_tups, output):
 
     return
 
-def gen_functional_qc(root_dir,taskfiles,task,keywords,output):
+def gen_functional_qc(root_dir,taskfiles,task,keywords,output,exclusions=[]):
     '''
     Given the fmriprep derivatives root dir, subjects, task and keywords
     Generate html qc pages in a hierarchical structure
@@ -267,7 +274,7 @@ def gen_functional_qc(root_dir,taskfiles,task,keywords,output):
         svgs = os.listdir(figdir)
 
         try:
-            svg = [get_func_svg(sub,ses,task,run,k,svgs) for k in keywords][0]
+            svg = [get_func_svg(sub,ses,task,run,k,svgs,exclusions) for k in keywords][0]
         except IndexError:
             missing_svg.append(f)
             continue
@@ -311,6 +318,16 @@ def make_functional_qc(layout,output, space):
         roi_dir = os.path.join(output,t,'rois')
         makedir(roi_dir)
         gen_functional_qc(fmriprep_dir,taskfiles,t,['rois'],roi_dir)
+
+        #FIELDMAPS MASK
+        fieldmask_dir = os.path.join(output,t,'fieldmaps_mask')
+        makedir(fieldmask_dir)
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['fmap','mask'],fieldmask_dir)
+
+        #FIELDMAPS REG
+        fieldreg_dir = os.path.join(output,t,'fieldmaps_reg')
+        makedir(fieldreg_dir)
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['fmap','reg'],fieldreg_dir,exclusions=['vsm'])
 
     return
 
