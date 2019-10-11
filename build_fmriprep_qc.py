@@ -92,6 +92,35 @@ def add_image_row(tag,svg):
     <tr><td><object type="image/svg+xml" data="{}"></object></td></tr>
     '''.format(tag,svg)
 
+
+def make_anatomical_qc(layout,output):
+    '''
+    Make brainmask and t1 --> MNI QC pages
+    '''
+
+    #Get list of subjects and fmriprep dir
+    fmriprep_dir = layout.root
+    subjects = [s for s in layout.get_subjects() if 
+            os.path.exists(os.path.join(fmriprep_dir,'sub-'+s,'figures'))]
+
+    #Brainmask
+    brainmask_dir = os.path.join(output,'brainmask')
+    makedir(brainmask_dir)
+    gen_anatomical_qc(fmriprep_dir,subjects,'_seg_brainmask',brainmask_dir)
+
+    #T12MNI
+    t12mni_dir = os.path.join(output,'t12mni')
+    makedir(t12mni_dir)
+    gen_anatomical_qc(fmriprep_dir,subjects,'t1_2_mni',t12mni_dir)
+
+def makedir(path):
+    try:
+        os.makedirs(path,exist_ok=True)
+    except OSError:
+        pass
+    return
+
+
 def gen_anatomical_qc(root_dir,subjects,keyword,output):
     '''
     Given a root directory, subjects, a keyword and output filename
@@ -147,64 +176,6 @@ def gen_anatomical_qc(root_dir,subjects,keyword,output):
 
     return
 
-def make_anatomical_qc(layout,output):
-    '''
-    Make brainmask and t1 --> MNI QC pages
-    '''
-
-    #Get list of subjects and fmriprep dir
-    fmriprep_dir = layout.root
-    subjects = [s for s in layout.get_subjects() if 
-            os.path.exists(os.path.join(fmriprep_dir,'sub-'+s,'figures'))]
-
-    #Brainmask
-    brainmask_dir = os.path.join(output,'brainmask')
-    makedir(brainmask_dir)
-    gen_anatomical_qc(fmriprep_dir,subjects,'_seg_brainmask',brainmask_dir)
-
-    #T12MNI
-    t12mni_dir = os.path.join(output,'t12mni')
-    makedir(t12mni_dir)
-    gen_anatomical_qc(fmriprep_dir,subjects,'t1_2_mni',t12mni_dir)
-
-def makedir(path):
-    try:
-        os.makedirs(path,exist_ok=True)
-    except OSError:
-        pass
-    return
-
-def get_func_svg(sub,ses,task,run,figtype,flist,exclude=[]):
-    '''
-    Pull svg for specific task, run and figure type from a list of figures in fmriprep derivatives
-    '''
-
-    exclude = set(exclude)
-
-    for f in flist:
-        splitted = f.split('.')[0].split('_')
-
-
-        #Checks
-        sub_in = ('sub-'+sub) in splitted
-        ses_in = ('ses-'+str(ses)) in splitted
-        task_in = ('task-'+task) in splitted
-
-        if run:
-            run_in = (('run-'+str(run)) in splitted) or (('run-0'+str(run)) in splitted)
-        else:
-            run_in = True
-
-        figtype_in = figtype in splitted
-
-        #For exclusions to set-based intersection
-        exclude_in = exclude.intersection(set(splitted))
-
-        if sub_in and ses_in and task_in and run_in and figtype_in:
-
-            if len(exclude_in) == 0:
-                return f
-
 def make_fc_html(svg_tups, output):
     '''
     Given a list of tuples mapping task files names to their svg counterparts,
@@ -250,6 +221,37 @@ def make_fc_html(svg_tups, output):
         html.append(add_image_row(filename, rel_svg))
 
     return
+
+def get_func_svg(sub,ses,task,run,figtype,flist,exclude=[]):
+    '''
+    Pull svg for specific task, run and figure type from a list of figures in fmriprep derivatives
+    '''
+
+    exclude = set(exclude)
+
+    for f in flist:
+        splitted = f.split('.')[0].split('_')
+
+
+        #Checks
+        sub_in = ('sub-'+sub) in splitted
+        ses_in = ('ses-'+str(ses)) in splitted
+        task_in = ('task-'+task) in splitted
+
+        if run:
+            run_in = (('run-'+str(run)) in splitted) or (('run-0'+str(run)) in splitted)
+        else:
+            run_in = True
+
+        figtype_in = figtype in splitted
+
+        #For exclusions to set-based intersection
+        exclude_in = exclude.intersection(set(splitted))
+
+        if sub_in and ses_in and task_in and run_in and figtype_in:
+
+            if len(exclude_in) == 0:
+                return f
 
 def gen_functional_qc(root_dir,taskfiles,task,keywords,output,exclusions=[]):
     '''
@@ -320,14 +322,15 @@ def make_functional_qc(layout,output, space):
         gen_functional_qc(fmriprep_dir,taskfiles,t,['rois'],roi_dir)
 
         #FIELDMAPS MASK
+        import pdb; pdb.set_trace()
         fieldmask_dir = os.path.join(output,t,'fieldmaps_mask')
         makedir(fieldmask_dir)
-        gen_functional_qc(fmriprep_dir,taskfiles,t,['fmap','mask'],fieldmask_dir)
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['mask'],fieldmask_dir)
 
         #FIELDMAPS REG
         fieldreg_dir = os.path.join(output,t,'fieldmaps_reg')
         makedir(fieldreg_dir)
-        gen_functional_qc(fmriprep_dir,taskfiles,t,['fmap','reg'],fieldreg_dir,exclusions=['vsm'])
+        gen_functional_qc(fmriprep_dir,taskfiles,t,['fmap'],fieldreg_dir,exclusions=['vsm','mask'])
 
     return
 
