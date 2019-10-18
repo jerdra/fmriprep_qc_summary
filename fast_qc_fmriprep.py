@@ -233,7 +233,7 @@ def main():
     output_dir      =   args['<output_dir>']
     ignore_fields   =   args['--ignore']
 
-    layout = bids.BIDSLayout(fmriprep_dir,derivatives=True,validate=False)
+    layout = bids.BIDSLayout(fmriprep_dir,validate=False, index_metadata=False)
 
     # Generate participants.tsv template
     participants_tsv(layout,output_dir,ignore_fields)
@@ -241,6 +241,8 @@ def main():
     #Now loop through each participant's scans and start building QC pages
     html_series = []
     subjects = layout.get_subjects()
+    no_task = []
+    prev_task_htmls = [] 
     for ind,s in enumerate(subjects):
 
         broad_name = '{}_sub-{}.html'.format(ind,s)
@@ -253,9 +255,9 @@ def main():
         #Get broad QC markup
         broad_html = make_broad_html(s, sub_figs, sub_files, output_dir, fig_dir)
 
-        #Link broad HTML to previous subject's last taskfile
+        #Write in link to the previous task html
         if ind > 0:
-            broad_html += [add_link(task_htmls[-1][0],'Previous Page')]
+            broad_html += [add_link(prev_task_htmls[-1][0],'Previous Page')]
 
         #Get functional markup (one per taskfile)
         task_files = layout.get(subject=s,extension='nii.gz',suffix='bold',space='T1w')
@@ -266,7 +268,8 @@ def main():
         try:
             broad_html += [add_link(task_htmls[0][0], 'Next Page')]
         except IndexError:
-            import pdb; pdb.set_trace()
+            no_task.append(s)
+            continue
 
         #Step 2: Link broad html to first task_html
         task_htmls[0][1] += [add_link(broad_name,'Previous Page')]
@@ -294,6 +297,12 @@ def main():
             with open(os.path.join(output_dir,t[0]),'w') as f:
                 f.writelines(t[1])
 
+        #Store previous task htmls
+        prev_task_htmls = task_htmls
+
+
+    print('Subjects with no task files:')
+    print('\n'.join(no_task))
 
 if __name__ == '__main__':
     main()
