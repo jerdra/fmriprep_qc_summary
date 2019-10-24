@@ -245,7 +245,7 @@ def main():
     prev_task_htmls = [] 
     for ind,s in enumerate(subjects):
 
-        broad_name = '{}_sub-{}.html'.format(ind,s)
+        broad_name = 'sub-{}_{}.html'.format(s,ind)
 
         #Get relevant files for subject
         fig_dir = os.path.join(layout.root,'sub-{}'.format(s),'figures')
@@ -284,8 +284,8 @@ def main():
 
         #Step 5: Link broad_html to the next subject
         if ind != len(subjects) - 1:
-            broad_html += [add_link('{}_sub-{}.html'.format(ind+1,subjects[ind+1]),'Next Subject')]
-            task_htmls[-1][1] += [add_link('{}_sub-{}.html'.format(ind+1,subjects[ind+1]),'Next Page')]
+            broad_html += [add_link('sub-{}_{}.html'.format(subjects[ind+1],ind+1),'Next Subject')]
+            task_htmls[-1][1] += [add_link('sub-{}_{}.html'.format(subjects[ind+1],ind+1),'Next Page')]
 
 
         #Write out files
