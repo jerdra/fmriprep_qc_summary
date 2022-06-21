@@ -27,7 +27,7 @@ nbformat==4.4.0
 nibabel==2.5.1
 notebook==6.0.1
 num2words==0.5.10
-numpy==1.17.2
+numpy==1.22.0
 pandas==0.25.1
 pandocfilters==1.4.2
 parso==0.5.1
